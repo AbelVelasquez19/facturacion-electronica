@@ -18,7 +18,7 @@ class RegisterController extends Controller
     $user = User::create([
         'name'=>$request->name,
         'email'=>$request->email,
-        'password'=>bcrypt($request->name),
+        'password'=>bcrypt($request->password),
     ]);
     $token = JWTAuth::fromUser($user);
     return response()->json([
