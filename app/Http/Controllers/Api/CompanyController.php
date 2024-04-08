@@ -13,7 +13,8 @@ class CompanyController extends Controller
      */
     public function index()
     {
-        return JWTAuth::user();;
+        $company = Company::where('user_id',auth()->id())->get();
+        return response()->json($company,200);
     }
 
     /**
@@ -23,7 +24,12 @@ class CompanyController extends Controller
     {
         $data = $request->validate([
             'razon_social'=>'required|string',
-            'ruc'=>'required|string',
+            'ruc'=>[
+                'required',
+                'string',
+                'regex:/^(10|20)\d{9}$/',
+                new \App\Rules\UniqueRucRule()
+            ],
             'direccion'=>'required|string',
             'logo_path'=>'nullable|image',
             'sol_user'=>'required|string',
@@ -35,9 +41,9 @@ class CompanyController extends Controller
             'production'=>'nullable|boolean',
         ]);
         if($request->hasFile('logo_path')){
-            $data["cert_path"] = $request->file('logo_path')->store('logos');    
+            $data["logo_path"] = $request->file('logo_path')->store('logos');    
         }
-        $data["logo_path"] = $request->file('cert_path')->store('certs');
+        $data["cert_path"] = $request->file('cert_path')->store('certs');
         $data["user_id"] = JWTAuth::user()->id;
 
         $company = Company::create($data);
@@ -51,24 +57,64 @@ class CompanyController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Company $company)
+    public function show($company)
     {
-        //
+        $company=Company::where('ruc',$company)->where('user_id',JWTAuth::user()->id)->firstOrFail();
+        return response()->json([
+            'comany'=>$company
+        ],200);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Company $company)
+    public function update(Request $request, $company)
     {
-        //
+        $company = Company::where('ruc',$company)->where('user_id',JWTAuth::user()->id)->firstOrFail();
+
+        $data = $request->validate([
+            'razon_social'=>'required|string',
+            'ruc'=>[
+                'nullable',
+                'string',
+                'regex:/^(10|20)\d{9}$/',
+                new \App\Rules\UniqueRucRule($company->id)
+            ],
+            'direccion'=>'nullable|string|min:5',
+            'logo_path'=>'nullable|image',
+            'sol_user'=>'nullable|string',
+            'sol_pass'=>'nullable|string',
+            //extencion
+            'cert_path'=>'nullable|file|mimes:pem,txt',
+            'client_id'=>'nullable|string',
+            'client_secret'=>'nullable|string',
+            'production'=>'nullable|boolean',
+        ]);
+        if($request->hasFile('logo_path')){
+            $data["logo_path"] = $request->file('logo_path')->store('logos');    
+        }
+        if($request->hasFile('cert_path')){
+            $data["cert_path"] = $request->file('cert_path')->store('certs');
+        }
+
+        $company->update($data);
+
+        return response()->json([
+            'message'=>'Empresa actualizada correctamente',
+            'company'=>$company,
+        ]);
+
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Company $company)
+    public function destroy($company)
     {
-        //
+       $company = Company::where('ruc',$company)->where('user_id',JWTAuth::user()->id)->firstOrFail();
+       $company->delete();
+       return response()->json([
+        'message'=>'Empresa eliminado correctamente'
+    ]);
     }
 }
